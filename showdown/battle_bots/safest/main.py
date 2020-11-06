@@ -45,6 +45,8 @@ class BattleBot(Battle):
         super(BattleBot, self).__init__(*args, **kwargs)
 
     def find_best_move(self):
-        battles = self.prepare_battles(join_moves_together=True)
+        #gets all game states reachable from this one
+        battles = self.prepare_battles(join_moves_together=True) 
+        
         safest_move = pick_safest_move_from_battles(battles)
         return format_decision(self, safest_move)
