@@ -20,6 +20,7 @@ class MonteCarloTree():
         #self.mutator = StateMutator(state)
         self.wins = 0
         self.total = 0
+        self.depth = depth
 
         user_options, opponent_options = self.battle.get_all_options()
         self.transitions = list(itertools.product(user_options, opponent_options))
@@ -29,12 +30,15 @@ class MonteCarloTree():
         return self.wins / self.total
 
     # TODO add accumulator to reach depth
-    def sample(self):
+    def sample(self, depth=0):
         self.total += 1
-        next_child = self
 
+        if depth == self.depth:
+            #print("MAX DEPTH REACHED")
+            return False #TODO add evaluation
         winner = self.state.battle_is_finished()
         if winner:
+            #print("TERMINAL REACHED")
             if winner == 1: #we won
                 self.wins += 1
                 return True
@@ -43,14 +47,14 @@ class MonteCarloTree():
             
         if len(self.children.keys()) == len(self.transitions):
             next_child = self.get_highest_ucb()
-            playout_successful = next_child.sample()
-            
+            playout_successful = next_child.sample(depth + 1)
         else:
+            #print("ELSE CASE\n" + str(self.state))
             unexplored_transitions = list(self.transitions - self.children.keys())
             chosen_transition = random.choice(unexplored_transitions)
             next_child = self.generate_next_child(chosen_transition)
             self.children[chosen_transition] = next_child
-            playout_successful = next_child.sample()
+            playout_successful = next_child.sample(depth + 1)
 
         if playout_successful: #backprop via boolean return of child
             self.wins += 1
@@ -76,11 +80,11 @@ class MonteCarloTree():
         return self.children[(our_move, opponent_move)]
 
     def get_best_move(self):
-        winrates = {move: child.win_rate() for move, child in self.children }
+        winrates = {move: child.win_rate() for move, child in self.children.items() }
         best_move = None
         best_winrate = 0
         for move, winrate in winrates.items():
-            if winrate > best_winrate:
+            if best_move is None or winrate >= best_winrate:
                 best_winrate = winrate
                 best_move = move
 
@@ -156,7 +160,8 @@ class BattleBot(Battle):
             move, score = mctree.get_best_move()
             all_scores[move] = score
         
-        decision, payoff = pick_safest(all_scores)
-        bot_choice = decision[0]
+        bot_choice = list(all_scores.keys())[0][0]
+        # TODO choose best move here
 
+        print("OUR MOVE:" + str(bot_choice))
         return format_decision(self, bot_choice)

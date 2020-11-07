@@ -5,7 +5,6 @@ from ..helpers import format_decision
 from showdown.engine.objects import StateMutator
 from showdown.engine.select_best_move import pick_safest
 from showdown.engine.select_best_move import get_payoff_matrix
-from showdown.engine.find_state_instructions import get_all_state_instructions
 
 import config
 
@@ -50,4 +49,5 @@ class BattleBot(Battle):
         battles = self.prepare_battles(join_moves_together=True) 
         
         safest_move = pick_safest_move_from_battles(battles)
+        print("SAFEST MOVE: " +str(safest_move))
         return format_decision(self, safest_move)
