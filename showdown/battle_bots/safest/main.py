@@ -5,6 +5,7 @@ from ..helpers import format_decision
 from showdown.engine.objects import StateMutator
 from showdown.engine.select_best_move import pick_safest
 from showdown.engine.select_best_move import get_payoff_matrix
+from showdown.engine.find_state_instructions import get_all_state_instructions
 
 import config
 
