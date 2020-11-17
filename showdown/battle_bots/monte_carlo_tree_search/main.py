@@ -14,31 +14,28 @@ TUNABLE_CONSTANT = 2
 
 class MonteCarloTree():
 
-    def __init__(self, battle, state, depth=MAX_DEPTH):
-        self.battle = battle
+    def __init__(self, state, depth=MAX_DEPTH):
         self.state = state
         #self.mutator = StateMutator(state)
         self.wins = 0
         self.total = 0
-        self.depth = depth
+        self.max_depth = depth
 
-        user_options, opponent_options = self.battle.get_all_options()
+        user_options, opponent_options = self.state.get_all_options()
         self.transitions = list(itertools.product(user_options, opponent_options))
-        self.children = {} #map from transition (our_move, opponent_move) to MonteCarloTree
+        self.children = {} #map from transition (our_move, opponent_move) to {mutator instruction: MonteCarloTree}
 
     def win_rate(self):
         return self.wins / self.total
 
-    # TODO add accumulator to reach depth
     def sample(self, depth=0):
         self.total += 1
 
-        if depth == self.depth:
-            #print("MAX DEPTH REACHED")
+        if depth == self.max_depth:
             return False #TODO add evaluation
+
         winner = self.state.battle_is_finished()
         if winner:
-            #print("TERMINAL REACHED")
             if winner == 1: #we won
                 self.wins += 1
                 return True
@@ -49,7 +46,6 @@ class MonteCarloTree():
             next_child = self.get_highest_ucb()
             playout_successful = next_child.sample(depth + 1)
         else:
-            #print("ELSE CASE\n" + str(self.state))
             unexplored_transitions = list(self.transitions - self.children.keys())
             chosen_transition = random.choice(unexplored_transitions)
             next_child = self.generate_next_child(chosen_transition)
@@ -69,10 +65,10 @@ class MonteCarloTree():
         #TODO choose a random insturction
         #for instructions in state_instructions:
         mutator.apply(random.choice(state_instructions).instructions)
-        return MonteCarloTree(self.battle, mutator.state)
+        return MonteCarloTree(mutator.state)
 
     def run(self, times):
-        for i in range(times):
+        for _ in range(times):
             self.sample()
         #run should return child node with most wins
 
@@ -80,15 +76,23 @@ class MonteCarloTree():
         return self.children[(our_move, opponent_move)]
 
     def get_best_move(self):
-        winrates = {move: child.win_rate() for move, child in self.children.items() }
-        best_move = None
-        best_winrate = 0
-        for move, winrate in winrates.items():
-            if best_move is None or winrate >= best_winrate:
-                best_winrate = winrate
-                best_move = move
+        payoff_matrix = {}
+        for transition, child in self.children.items():
+            if transition[0] not in payoff_matrix.keys():
+                payoff_matrix[transition[0]] = [child.win_rate()]
+            else:
+                payoff_matrix[transition[0]].append(child.win_rate())
 
-        return best_move, best_winrate
+        # check for highest minimum win rate
+        dominant_move = None
+        dominant_winrate = None
+        for move, winrates in payoff_matrix.items():
+            min_winrate = min(winrates)
+            if dominant_winrate is None or min_winrate > dominant_winrate:
+                dominant_move = move
+                dominant_winrate = min_winrate
+        
+        return dominant_move, dominant_winrate
     
     def get_highest_ucb(self):
         best_child = None
@@ -100,43 +104,12 @@ class MonteCarloTree():
                 best_child_weight = w        
         return best_child
 
-# function MCTS_sample(state)
-#     state.visits += 1
-#     if all children of state expanded:
-#         next_state = UCB_sample(state)
-#         winner = MCTS_sample(next_state)
-#     else:
-#         if some children of state expanded:
-#             next_state = expand(random unexpanded child)
-#         else:
-#             next_state = state
-#         winner = random_playout(next_state)
-#     update_value(state, winner)
-
-# function UCB_sample(state):
-#     weights = []
-#     for child of state:
-#         w = child.value + C * sqrt(ln(state.visits) / child.visits)
-#         weights.append(w)
-#     distribution = [w / sum(weights) for w in weights]
-#     return child sampled according to distribution
-
-# function random_playout(state):
-#     if is_terminal(state):
-#         return winner
-#     else: return random_playout(random_move(state))
-
-# function expand(state):
-#     state.visits = 1
-#     state.value = 0
-
-# function update_value(state, winner):
-#     # Depends on the application. The following would work for hex.
-#     if winner == state.turn:
-#         state.value += 1
-#     else:
-#         state.value -= 1
-
+    def pretty_print(self, depth=0):
+        print(("-" * (depth* 2)) + "WINS: " + str(self.wins) + " TOTAL: " + str(self.total))
+        for move, child in self.children.items():
+            if child.total < 50:
+                continue
+            child.pretty_print(depth + 1)
 
 
 class BattleBot(Battle):
@@ -154,14 +127,20 @@ class BattleBot(Battle):
         all_scores = dict()
         trees = []
         for i, b in enumerate(battles):
-            mctree = MonteCarloTree(b, b.create_state())
-            mctree.run(100)
+            mctree = MonteCarloTree(b.create_state())
+            mctree.run(10000)
+            mctree.pretty_print()
             trees.append(mctree)
             move, score = mctree.get_best_move()
-            all_scores[move] = score
+            print("SCORE PRINTED: " + str(score))
+            if move in all_scores.keys():
+                all_scores[move].append(score)
+            else:
+                all_scores[move] = [score]
         
-        bot_choice = list(all_scores.keys())[0][0]
-        # TODO choose best move here
+        averages = { move: sum(scores)/len(scores) for move, scores in all_scores.items()}
+        bot_choice = max(averages, key=averages.get)
 
-        print("OUR MOVE:" + str(bot_choice))
+
+        print("OUR MOVE:" + str(bot_choice) + " PROJECTED WINRATE: " + str(averages[bot_choice]))
         return format_decision(self, bot_choice)
