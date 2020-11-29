@@ -105,12 +105,8 @@ class MonteCarloTree():
         return best_child
 
     def pretty_print(self, depth=0):
-        print(("-" * (depth* 2)) + "WINS: " + str(self.wins) + " TOTAL: " + str(self.total))
         for move, child in self.children.items():
-            if child.total < 50:
-                continue
-            child.pretty_print(depth + 1)
-
+            print(("Move: " + move + " WINS: " + str(self.child.wins) + " TOTAL: " + str(self.child.total))
 
 class BattleBot(Battle):
     def __init__(self, *args, **kwargs):
