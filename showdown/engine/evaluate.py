@@ -133,5 +133,5 @@ def evaluate(state):
             score -= count * Scoring.STATIC_SCORED_SIDE_CONDITIONS[condition]
         elif condition in Scoring.POKEMON_COUNT_SCORED_SIDE_CONDITIONS:
             score -= count * Scoring.POKEMON_COUNT_SCORED_SIDE_CONDITIONS[condition] * opponent_alive_reserves_count
-
+    #print(score)
     return int(score)

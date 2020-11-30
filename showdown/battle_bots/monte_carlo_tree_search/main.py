@@ -10,7 +10,7 @@ import copy
 import itertools
 import math
 
-MAX_DEPTH = 200
+MAX_DEPTH = 50
 TUNABLE_CONSTANT = 2 
 
 class MonteCarloTree():
@@ -29,11 +29,34 @@ class MonteCarloTree():
     def win_rate(self):
         return self.wins / self.total
 
+    def evaluate(self):
+        number_of_opponent_reserve_revealed = len(self.state.opponent.reserve) + 1
+        opponent_alive_reserves_count = len([p for p in self.state.opponent.reserve.values() if p.hp > 0]) + (6-number_of_opponent_reserve_revealed)
+    
+        score = 0
+        score += self.evaluate_pokemon(self.state.self.active)
+        for pkmn in self.state.self.reserve.values():
+            score += self.evaluate_pokemon(pkmn)
+
+        score -= self.evaluate_pokemon(self.state.opponent.active)
+        for pkmn in self.state.opponent.reserve.values():
+            score -= self.evaluate_pokemon(pkmn)
+
+        for _ in range(opponent_alive_reserves_count):
+            score -= 100
+
+        return score
+
+    def evaluate_pokemon(self, pkmn):
+        if pkmn.hp <= 0:
+            return 0
+        return 100 * (float(pkmn.hp) / pkmn.maxhp)
+ 
     def sample(self, depth=0):
         self.total += 1
 
         if depth == self.max_depth:
-            return evaluate(self.state) >= 0
+            return self.evaluate() >= 0
 
         winner = self.state.battle_is_finished()
         if winner:
@@ -60,16 +83,19 @@ class MonteCarloTree():
         return False
 
     def generate_next_child(self, chosen_transition):
-        mutator = StateMutator(self.state)
+        mutator = StateMutator(copy.deepcopy(self.state))
         state_instructions = get_all_state_instructions(mutator, chosen_transition[0], chosen_transition[1])
-        #TODO choose a random insturction
-        #for instructions in state_instructions:
-        mutator.apply(random.choice(state_instructions).instructions)
+        possible_instrucitons = [i.instructions for i in state_instructions]
+        weights = [i.percentage for i in state_instructions]
+        choice = random.choices(possible_instrucitons, weights=weights)[0]
+        mutator.apply(choice)
         return MonteCarloTree(mutator.state)
 
     def run(self, times):
-        for _ in range(times):
+        for sample in range(times):
             self.sample()
+            if sample % 50 == 0:
+                print("[DEBUG]: ran ", sample, "/", times, " samples") 
         #run should return child node with most wins
 
     def get_child_from_move(self, our_move, opponent_move):
@@ -120,7 +146,7 @@ class BattleBot(Battle):
         all_scores = dict()
         for i, b in enumerate(battles):
             mctree = MonteCarloTree(b.create_state())
-            mctree.run(10000)
+            mctree.run(350)
             mctree.pretty_print()
 
             move, score = mctree.get_best_move()
