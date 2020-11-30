@@ -3,6 +3,7 @@ from showdown.engine.objects import StateMutator
 from showdown.battle_bots.helpers import format_decision
 from showdown.engine.find_state_instructions import get_all_state_instructions
 from showdown.engine.select_best_move import pick_safest
+from showdown.engine.evaluate import evaluate
 
 import random
 import copy
@@ -32,7 +33,7 @@ class MonteCarloTree():
         self.total += 1
 
         if depth == self.max_depth:
-            return False #TODO add evaluation
+            return evaluate(self.state) >= 0
 
         winner = self.state.battle_is_finished()
         if winner:
@@ -57,7 +58,6 @@ class MonteCarloTree():
             return True
 
         return False
-
 
     def generate_next_child(self, chosen_transition):
         mutator = StateMutator(self.state)
@@ -106,7 +106,7 @@ class MonteCarloTree():
 
     def pretty_print(self, depth=0):
         for move, child in self.children.items():
-            print(("Move: " + move + " WINS: " + str(self.child.wins) + " TOTAL: " + str(self.child.total))
+            print("Move: " + str(move) + " WINS: " + str(child.wins) + " TOTAL: " + str(child.total))
 
 class BattleBot(Battle):
     def __init__(self, *args, **kwargs):
@@ -117,16 +117,12 @@ class BattleBot(Battle):
         # get possible game configurations
         battles = self.prepare_battles(join_moves_together=True) 
 
-        # loop thru battles and construct montecarlo trees for each one
-        # TODO: find way to hash battles so that we can know which battles to go back into
-
         all_scores = dict()
-        trees = []
         for i, b in enumerate(battles):
             mctree = MonteCarloTree(b.create_state())
             mctree.run(10000)
             mctree.pretty_print()
-            trees.append(mctree)
+
             move, score = mctree.get_best_move()
             print("SCORE PRINTED: " + str(score))
             if move in all_scores.keys():
