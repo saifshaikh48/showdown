@@ -14,7 +14,9 @@ import math
 MAX_DEPTH = 40
 TUNABLE_CONSTANT = 2 
 DEBUG = logging.DEBUG >= logging.root.level
+SAMPLE_COUNT = 300
 
+#monte_carlo_tree_search
 class MonteCarloTree():
     """
     Object representing a node in a monte carlo tree
@@ -184,7 +186,6 @@ class MonteCarloTree():
         for move, child in self.children.items():
             print("Move: " + str(move) + " WINS: " + str(child.wins) + " TOTAL: " + str(child.total))
 
-SAMPLE_COUNT = 300
 
 class BattleBot(Battle):
     def __init__(self, *args, **kwargs):
