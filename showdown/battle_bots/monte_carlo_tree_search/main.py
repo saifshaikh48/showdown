@@ -11,12 +11,12 @@ import copy
 import itertools
 import math
 
-MAX_DEPTH = 40
+MAX_DEPTH = 10
 TUNABLE_CONSTANT = 2 
-DEBUG = logging.DEBUG >= logging.root.level
-SAMPLE_COUNT = 300
+SAMPLE_COUNT = 1500
 
-#monte_carlo_tree_search
+#DEBUG = logging.DEBUG >= logging.root.level
+
 class MonteCarloTree():
     """
     Object representing a node in a monte carlo tree
@@ -78,7 +78,7 @@ class MonteCarloTree():
             return 0
         return 100 * (float(pkmn.hp) / pkmn.maxhp)
  
-    def sample(self, depth=0):
+    def sample(self, depth=0, append=True):
         """
         Runs a sample on a node in a montecarlo search tree. If the node has unexplored
         transitions it opts to randomly choose one of those first. Otherwise, it 
@@ -108,8 +108,10 @@ class MonteCarloTree():
             unexplored_transitions = list(self.transitions - self.children.keys())
             chosen_transition = random.choice(unexplored_transitions)
             next_child = self.generate_next_child(chosen_transition)
-            self.children[chosen_transition] = next_child
-            playout_successful = next_child.sample(depth + 1)
+
+            if append:
+                self.children[chosen_transition] = next_child
+            playout_successful = next_child.sample(depth + 1, False)
 
         if playout_successful: #backprop via boolean return of child
             self.wins += 1
@@ -140,8 +142,8 @@ class MonteCarloTree():
         """
         for sample in range(times):
             self.sample()
-            if DEBUG and sample % 50 == 0:
-                print("[DEBUG]: ran ", sample, "/", times, " samples") 
+            # if DEBUG and sample % 50 == 0:
+            #     print("[DEBUG]: ran ", sample, "/", times, " samples") 
 
     def get_best_move(self):
         """
@@ -188,6 +190,8 @@ class MonteCarloTree():
 
 
 class BattleBot(Battle):
+    '''monte_carlo_tree_search'''
+    
     def __init__(self, *args, **kwargs):
         super(BattleBot, self).__init__(*args, **kwargs)
 
@@ -198,8 +202,8 @@ class BattleBot(Battle):
         """
         mctree = MonteCarloTree(battle.create_state())
         mctree.run(SAMPLE_COUNT)
-        if DEBUG:
-            mctree.pretty_print()
+        # if DEBUG:
+        #    mctree.pretty_print()
 
         return mctree.get_best_move()
 
@@ -226,7 +230,7 @@ class BattleBot(Battle):
         averages = { move: sum(scores)/len(scores) for move, scores in all_scores.items()}
         bot_choice = max(averages, key=averages.get)
 
-        if DEBUG:
-            print("OUR MOVE:" + str(bot_choice) + " PROJECTED WINRATE: " + str(averages[bot_choice]))
+        # if DEBUG:
+        #     print("OUR MOVE:" + str(bot_choice) + " PROJECTED WINRATE: " + str(averages[bot_choice]))
 
         return format_decision(self, bot_choice)
