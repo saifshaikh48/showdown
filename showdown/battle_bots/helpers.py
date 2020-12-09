@@ -25,7 +25,7 @@ def format_decision(battle, decision):
         if battle.user.active.can_dynamax and all(p.hp == 0 for p in battle.user.reserve):
             message = "{} {}".format(message, constants.DYNAMAX)
 
-        if battle.user.active.get_move(decision).can_z:
-            message = "{} {}".format(message, constants.ZMOVE)
+        #if battle.user.active.get_move(decision).can_z:
+        #    message = "{} {}".format(message, constants.ZMOVE)
 
     return [message, str(battle.rqid)]

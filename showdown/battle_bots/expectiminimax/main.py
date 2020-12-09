@@ -12,6 +12,13 @@ import itertools
 import math
 
 DEPTH = 2
+BLACKLISTED_MOVES = set(['voltswitch', 'uturn', 'outrage'])
+
+
+def get_transitions(state):
+    user_options, opponent_options = state.get_all_options()
+    user_options = list(set(user_options) - BLACKLISTED_MOVES)
+    return list(itertools.product(user_options, opponent_options))
 
 def get_dominant_move(payoff_matrix):
     """
@@ -81,8 +88,7 @@ def expectiminimax(state, depth):
             return -10000
 
     else:
-        user_options, opponent_options = state.get_all_options()
-        transitions = list(itertools.product(user_options, opponent_options))
+        transitions = get_transitions(state)
         value_of_transisitons = {}
         for transition in transitions:
             value_of_transisitons[transition] = calculate_value(state, transition, depth - 1)
@@ -97,8 +103,8 @@ def get_value_map(battle, depth):
     a single possible hidden state of the partially observable game. 
     """
     state = battle.create_state()
-    user_options, opponent_options = state.get_all_options()
-    transitions = list(itertools.product(user_options, opponent_options))
+    transitions = get_transitions(state)
+
     value_of_transisitons = {}
     for transition in transitions:
         value_of_transisitons[transition] = calculate_value(state, transition, depth - 1)
