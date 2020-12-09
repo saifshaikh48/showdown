@@ -150,29 +150,13 @@ class MonteCarloTree():
             # if DEBUG and sample % 50 == 0:
             #     print("[DEBUG]: ran ", sample, "/", times, " samples") 
 
-    def get_best_move(self):
+    def generate_value_map(self):
         """
-            Returns the move (that we could make) with the highest win rate 
-            throughout this state and child playouts, resulting in a dominant playing strategy
+            Returns a map each transition for this nodes states 
+            to its winrate
         """
-        payoff_matrix = {}
-        for transition, child in self.children.items():
-            if transition[0] not in payoff_matrix.keys():
-                payoff_matrix[transition[0]] = [child.win_rate()]
-            else:
-                payoff_matrix[transition[0]].append(child.win_rate())
+        return { t : c.win_rate() for t, c in self.children.items() }
 
-        # check for highest minimum win rate
-        dominant_move = None
-        dominant_winrate = None
-        for move, winrates in payoff_matrix.items():
-            min_winrate = min(winrates)
-            if dominant_winrate is None or min_winrate > dominant_winrate:
-                dominant_move = move
-                dominant_winrate = min_winrate
-        
-        return dominant_move, dominant_winrate
-    
     def get_highest_ucb(self):
         """
             Returns the child node with the highest UCB.
@@ -194,22 +178,44 @@ class MonteCarloTree():
             print("Move: " + str(move) + " WINS: " + str(child.wins) + " TOTAL: " + str(child.total))
 
 
+def get_dominant_move(payoff_matrix):
+    """
+    Finds the dominant move in a payoff matrix.
+    Returns the move and expectiminimax value associated
+    {Move: [Double]} -> Move, Double
+    """
+
+    dominant_move = None
+    dominant_value = None
+    for move, values in payoff_matrix.items():
+        min_value = min(values)
+        if dominant_value is None or min_value > dominant_value:
+            dominant_move = move
+            dominant_value = min_value
+    
+    return dominant_move, dominant_value
+
+
+def get_best_move(value_maps):
+    """
+    Looks across all possible hidden states of the partially observable game and selects
+    the dominant move.
+    """
+    payoff_matrix = {}
+    for value_map in value_maps:
+        for transition, value in value_map.items():
+            if transition[0] not in payoff_matrix.keys():
+                payoff_matrix[transition[0]] = [value]
+            else:
+                payoff_matrix[transition[0]].append(value)
+    
+    return get_dominant_move(payoff_matrix)
+
 class BattleBot(Battle):
     '''monte_carlo_tree_search'''
     
     def __init__(self, *args, **kwargs):
         super(BattleBot, self).__init__(*args, **kwargs)
-
-    def find_best_move_for_battle(self, battle):
-        """
-        Returns the best move after sampling a monte carlo tree with the
-        state of the given battle
-        """
-        mctree = MonteCarloTree(battle.create_state())
-        mctree.run(SAMPLE_COUNT)
-        #mctree.pretty_print()
-
-        return mctree.get_best_move()
 
     def find_best_move(self):
         """
@@ -217,24 +223,15 @@ class BattleBot(Battle):
         Possible battles include variations in the sets of moves the opponents
         pokemon can make that is hidden from the bot.
 
-        This library updates the possible battles on each turn and each battle
-        is equally likely in random battles, so we are hopeful and chose the move 
-        with the highest average winrate across the trees.
+        Returns the best move according to mcts
         """
         battles = self.prepare_battles(join_moves_together=True)
+        value_maps = []
 
-        all_scores = dict()
-        for _, b in enumerate(battles):
-            move, score = self.find_best_move_for_battle(b)
-            if move in all_scores.keys():
-                all_scores[move].append(score)
-            else:
-                all_scores[move] = [score]
-        
-        averages = { move: sum(scores)/len(scores) for move, scores in all_scores.items()}
-        bot_choice = max(averages, key=averages.get)
+        for b in battles:
+            mctree = MonteCarloTree(b.create_state())
+            mctree.run(int(SAMPLE_COUNT / len(battles)))
+            value_maps.append(mctree.generate_value_map())
 
-        # if DEBUG:
-        #     print("OUR MOVE:" + str(bot_choice) + " PROJECTED WINRATE: " + str(averages[bot_choice]))
-
-        return format_decision(self, bot_choice)
+        best_move, value = get_best_move(value_maps)
+        return format_decision(self, best_move)
